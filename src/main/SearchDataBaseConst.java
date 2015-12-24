@@ -8,9 +8,21 @@ import java.nio.file.Paths;
  */
 public class SearchDataBaseConst {
 
-    /** 設定ファイル名（デフォルト） */
-    public static final String PROPERTY_FILE_NAME = "SearchDatabase.properties";
+    /*
+     * 環境系
+     */
+    /** 実行ディレクトリパス */
+    private static final String RUN_DIR = System.getProperty("user.dir");
+    /** confディレクトリパス */
+    public static final String CONF_DIR = Paths.get(RUN_DIR, "conf").toString();
+    /** コンソール改行コード(\n) */
+    public static final String NEW_LINE = "\n";
 
+    /*
+     * デフォルト設定値
+     */
+    /** デフォルト設定値（ファイル名） */
+    public static final String DEFAULT_PROPERTY_FILE_NAME = "SearchDatabase.properties";
     /** デフォルト設定値（DB名） */
     public static final String DEFAULT_DB_NAME = "サンプルDB";
     /** デフォルト設定値（DB URL） */
@@ -20,12 +32,9 @@ public class SearchDataBaseConst {
     /** デフォルト設定値（DBパスワード） */
     public static final String DEFAULT_DB_PASS = "pass";
 
-    /** 実行ディレクトリパス */
-    public static final String RUN_DIR = System.getProperty("user.dir");
-
-    /** confディレクトリパス */
-    public static final String CONF_DIR = Paths.get(RUN_DIR, "conf").toString();
-
+    /*
+     * Oracleデータ型
+     */
     /** Oracle データ型(CHAR) */
     public static final String DATA_TYPE_CHAR = "CHAR";
     /** Oracle データ型(VARCHAR2) */
@@ -37,11 +46,12 @@ public class SearchDataBaseConst {
     /** Oracle データ型(TIMESTAMP) */
     public static final String DATA_TYPE_TIMESTAMP = "TIMESTAMP";
 
+    /*
+     * Mapキー
+     */
     /** 検索結果格納Mapキー(テーブル名) */
     public static final String RESULT_MAP_KEY_TABLE_NAME = "tableNm";
     /** 検索結果格納Mapキー(カラム名) */
     public static final String RESULT_MAP_KEY_COLUMN_NAME = "colNm";
 
-    /** コンソール改行コード(\n) */
-    public static final String NEW_LINE = "\n";
 }

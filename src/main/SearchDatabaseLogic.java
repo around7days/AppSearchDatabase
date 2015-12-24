@@ -5,7 +5,6 @@ import static main.SearchDataBaseConst.*;
 import java.io.File;
 import java.nio.file.Paths;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +54,8 @@ public class SearchDatabaseLogic {
 
         // コンボボックスに取得した内容をセット
         DefaultComboBoxModel<String> model = new DefaultComboBoxModel<String>();
-        if (!MyStringUtil.isEmpty(list)) {
+
+        if (!list.isEmpty()) {
             // propertiesファイルが存在する場合はコンボボックスにセット
             for (String filePath : list) {
                 String fileNm = MyStringUtil.getFileNm(filePath);
@@ -71,7 +71,7 @@ public class SearchDatabaseLogic {
 
         } else {
             // propertiesファイルが存在しない場合はデフォルト名をセット
-            model.addElement(PROPERTY_FILE_NAME);
+            model.addElement(DEFAULT_PROPERTY_FILE_NAME);
 
             // デフォルト値でプロパティファイルの作成
             bean.getDbName().setText(DEFAULT_DB_NAME);
@@ -82,7 +82,7 @@ public class SearchDatabaseLogic {
             // コンボボックス内容を構築
             bean.getCbDbConf().setModel(model);
 
-            // プロパティファイルの保存
+            // デフォルト値のプロパティファイルを作成（保存）
             save(bean);
         }
 
@@ -207,7 +207,6 @@ public class SearchDatabaseLogic {
         } finally {
             // コンソール出力
             bean.getConsole().setText(console.toString());
-            bean.getStatusLabel().setText("Status :");
             // DB切断
             sqlService.DBClose();
         }
@@ -230,7 +229,7 @@ public class SearchDatabaseLogic {
 
         // 拡張子チェック結果
         if (!"properties".equals(MyStringUtil.getFileFormat(propFileNm))) {
-            consoleLog(console, "[error] ファイル名の拡張子は「.properties」を指定してください。");
+            consoleLog(console, "[error] ファイル名の拡張子は「properties」を指定してください。");
             ret = true;
         }
 
@@ -304,74 +303,62 @@ public class SearchDatabaseLogic {
     private void execute(SearchDatabaseBean bean,
                          StringBuilder console) throws SQLException {
 
-        // 結果格納リスト
-        List<Map<String, String>> resultList = new ArrayList<Map<String, String>>();
-
         // テーブル名リストの取得
         List<Map<String, String>> tableList = sqlLogic.getTableList(bean);
         logger.debug("table count :" + tableList.size());
-        for (int i = 0; i < tableList.size(); i++) {
-            // テーブル名の取得
-            String tableNm = tableList.get(i).get("TABLE_NAME");
-            logger.debug("table name :" + tableNm);
+        if (tableList.isEmpty()) {
+            // 検索対象のテーブルが存在しない
+            return;
+        }
 
-            // ステータスバーに反映
-            bean.getStatusLabel().setText("Status : [" + i + "/" + tableList.size() + "] " + tableNm);
+        // テーブル単位で検索処理の実施
+        for (Map<String, String> tableMap : tableList) {
+            // テーブル名の取得
+            String tableNm = tableMap.get("TABLE_NAME");
+            logger.debug("table name :" + tableNm);
 
             // 項目名リストの取得
             List<Map<String, String>> colList = sqlLogic.getColumnList(tableNm, bean);
             logger.debug("table column count :" + colList.size());
-            if (colList.isEmpty()) continue;
+            if (colList.isEmpty()) {
+                // 検索対象の項目が存在しない
+                continue;
+            }
 
             // 検索値の存在チェック
-            boolean b = sqlLogic.checkSeachValueAll(tableNm, colList, bean);
-            if (b == true) {
-                // テーブルに検索値が存在する
+            boolean hasCheckSeachValueAll = sqlLogic.checkSeachValueAll(tableNm, colList, bean);
+            if (hasCheckSeachValueAll == false) {
+                // テーブルに検索値が存在しない
+                continue;
+            }
 
-                if (bean.getRdTableCol().isSelected()) {
-                    // 項目名まで検索
+            if (bean.getRdTableCol().isSelected()) {
+                // 項目名まで検索
 
-                    for (Map<String, String> colMap : colList) {
-                        // 検索値の存在チェック（項目単位で確認）
-                        boolean bb = sqlLogic.checkSeachValue(tableNm, colMap, bean);
-                        if (bb == true) {
-                            // 結果格納Mapの生成
-                            Map<String, String> resultMap = new HashMap<String, String>();
-                            resultMap.put(RESULT_MAP_KEY_TABLE_NAME, tableNm);
-                            resultMap.put(RESULT_MAP_KEY_COLUMN_NAME, colMap.get("COLUMN_NAME"));
-
-                            // 結果Listに格納
-                            resultList.add(resultMap);
-                        }
+                for (Map<String, String> colMap : colList) {
+                    // 検索値の存在チェック（項目単位で確認）
+                    boolean hasCheckSeachValue = sqlLogic.checkSeachValue(tableNm,
+                                                                          colMap.get("COLUMN_NAME"),
+                                                                          colMap.get("DATA_TYPE"),
+                                                                          bean);
+                    if (hasCheckSeachValue == false) {
+                        // 該当しない
+                        continue;
                     }
-                } else {
-                    // テーブル名のみ
 
-                    // 結果格納Mapの生成
-                    Map<String, String> resultMap = new HashMap<String, String>();
-                    resultMap.put(RESULT_MAP_KEY_TABLE_NAME, tableNm);
+                    // コンソール出力（テーブル名＋項目名）
+                    console.append("テーブル名：" + tableNm + " / ");
+                    console.append("項目名：" + colMap.get("COLUMN_NAME") + NEW_LINE);
 
-                    // 結果Listに格納
-                    resultList.add(resultMap);
                 }
+            } else {
+                // テーブル名のみ
+
+                // コンソール出力（テーブル名）
+                console.append("テーブル名：" + tableNm + NEW_LINE);
             }
         }
 
-        // 検索結果の出力
-        if (MyStringUtil.isEmpty(resultList)) {
-            console.append("該当結果なし" + NEW_LINE);
-        } else {
-            for (Map<String, String> map : resultList) {
-                if (bean.getRdTableCol().isSelected()) {
-                    // テーブル名＋項目名
-                    console.append("テーブル名：" + map.get(RESULT_MAP_KEY_TABLE_NAME) + " / ");
-                    console.append("項目名：" + map.get(RESULT_MAP_KEY_COLUMN_NAME) + NEW_LINE);
-                } else {
-                    // テーブル名のみ
-                    console.append("テーブル名：" + map.get(RESULT_MAP_KEY_TABLE_NAME) + NEW_LINE);
-                }
-            }
-        }
     }
 
     /**

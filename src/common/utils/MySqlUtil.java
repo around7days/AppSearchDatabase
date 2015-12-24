@@ -24,7 +24,7 @@ public class MySqlUtil {
     public static String createSqlIn(List<String> list) {
         if (list == null || list.isEmpty()) return null;
 
-        StringBuffer bf = new StringBuffer();
+        StringBuilder bf = new StringBuilder();
         for (String str : list) {
             bf.append("'").append(str).append("',");
         }
@@ -44,7 +44,7 @@ public class MySqlUtil {
     public static String createSqlIn(List<Map<String, String>> paramList,
                                      String key) {
 
-        StringBuffer bf = new StringBuffer();
+        StringBuilder bf = new StringBuilder();
 
         for (Map<String, String> map : paramList) {
             bf.append("'").append(map.get(key)).append("',");

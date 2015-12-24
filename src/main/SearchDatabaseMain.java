@@ -618,7 +618,8 @@ public class SearchDatabaseMain extends JFrame {
     private JTextArea getMemo() {
         if (memo == null) {
             //@formatter:off
-            String line = "・Like検索の「%」「_」は自分で入力してください。" + NEW_LINE +
+            String line = "・Oracleのみ対応しています" + NEW_LINE +
+                          "・Like検索の「%」「_」は自分で入力してください。" + NEW_LINE +
                           "・データベースの日付型（DATE、TIMESTAMP）は「YYYY/MM/DD」で取得して比較します。" + NEW_LINE +
                           "・Viewは検索対象外です。" + NEW_LINE +
                           "・項目は「VARCHAR2、CHAR、DATE、TIMESTAMP、NUMBER」型のみ検索します。" + NEW_LINE +
@@ -626,6 +627,7 @@ public class SearchDatabaseMain extends JFrame {
             //@formatter:on
 
             memo = new JTextArea(line);
+            memo.setFont(new Font("MS UI Gothic", Font.PLAIN, 12));
             memo.setDisabledTextColor(Color.RED);
             memo.setBackground(jContentPane.getBackground());
             memo.setEnabled(false);

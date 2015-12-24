@@ -33,7 +33,7 @@ public class SearchDatabaseSql {
     public List<Map<String, String>> getTableList(SearchDatabaseBean bean) throws SQLException {
 
         // SQL文の生成
-        StringBuffer sql = new StringBuffer();
+        StringBuilder sql = new StringBuilder();
 
         sql.append("select distinct ");
         sql.append("    TABLE_NAME ");
@@ -44,8 +44,8 @@ public class SearchDatabaseSql {
         if (!bean.getChkAllTable().isSelected()) {
             // 全検索以外
             // 比較演算子の取得（Like演算子 or =演算子）
-            String comparisonOperator = bean.getChkLikeTable().isSelected() ? "like" : "=";
-            sql.append("and TABLE_NAME " + comparisonOperator + " '" + bean.getSearchTableNm().getText() + "' ");
+            String compOperator = bean.getChkLikeTable().isSelected() ? "like" : "=";
+            sql.append("and TABLE_NAME " + compOperator + " '" + bean.getSearchTableNm().getText() + "' ");
         }
         sql.append("order by TABLE_NAME ");
 
@@ -63,12 +63,16 @@ public class SearchDatabaseSql {
                                                    SearchDatabaseBean bean) throws SQLException {
 
         // SQL文の生成
-        StringBuffer sql = new StringBuffer();
+        StringBuilder sql = new StringBuilder();
 
         sql.append("select ");
         sql.append("    TABLE_NAME, ");
         sql.append("    COLUMN_NAME, ");
-        sql.append("    DATA_TYPE, ");
+        sql.append("    case  ");
+        sql.append("        when DATA_TYPE like 'TIMESTAMP%' then 'TIMESTAMP' ");
+        sql.append("        else DATA_TYPE ");
+        sql.append("    end as DATA_TYPE, ");
+        // sql.append("    DATA_TYPE, ");
         sql.append("    DATA_LENGTH ");
         sql.append("from ");
         sql.append("    USER_TAB_COLUMNS ");
@@ -77,8 +81,8 @@ public class SearchDatabaseSql {
         if (!bean.getChkAllCol().isSelected()) {
             // 全検索以外
             // 比較演算子の取得（Like演算子 or =演算子）
-            String comparisonOperator = bean.getChkLikeCol().isSelected() ? "like" : "=";
-            sql.append("and COLUMN_NAME " + comparisonOperator + " '" + bean.getSearchColNm().getText() + "' ");
+            String compOperator = bean.getChkLikeCol().isSelected() ? "like" : "=";
+            sql.append("and COLUMN_NAME " + compOperator + " '" + bean.getSearchColNm().getText() + "' ");
         }
         sql.append("order by ");
         sql.append("    TABLE_NAME, ");
@@ -98,27 +102,37 @@ public class SearchDatabaseSql {
     public boolean checkSeachValueAll(String tableNm,
                                       List<Map<String, String>> colList,
                                       SearchDatabaseBean bean) throws SQLException {
+        /*
+         * SQL文の実行チェック
+         */
+        boolean flg = false;
+        for (Map<String, String> colMap : colList) {
+            String whereCondition = getWhereCondition(colMap.get("COLUMN_NAME"), colMap.get("DATA_TYPE"), bean);
+            if (MyStringUtil.isNotEmpty(whereCondition)) {
+                flg = true;
+                break;
+            }
+        }
+        if (flg == false) {
+            // where区に対象となる項目が存在しない
+            return false;
+        }
 
-        // SQL文の生成
-        StringBuffer sql = new StringBuffer();
+        /*
+         * SQL文の生成
+         */
+        StringBuilder sql = new StringBuilder();
 
         sql.append("select ");
         sql.append("    'X' ");
         sql.append("from ");
         sql.append("    " + tableNm + " ");
         sql.append("where ");
-        boolean flg = false;
         for (Map<String, String> colMap : colList) {
             String whereCondition = getWhereCondition(colMap.get("COLUMN_NAME"), colMap.get("DATA_TYPE"), bean);
             if (MyStringUtil.isNotEmpty(whereCondition)) {
                 sql.append(whereCondition + " or ");
-                flg = true;
             }
-        }
-
-        if (flg == false) {
-            // where区に対象となる項目が存在しない
-            return false;
         }
 
         // 最後の接続詞(OR)を取り除く
@@ -126,7 +140,7 @@ public class SearchDatabaseSql {
 
         // 検索結果の取得
         List<Map<String, String>> list = sqlService.doSelect(sqlVal);
-        if (MyStringUtil.isNotEmpty(list)) {
+        if (!list.isEmpty()) {
             // 存在する
             return true;
         }
@@ -137,22 +151,29 @@ public class SearchDatabaseSql {
     /**
      * 検索値の存在チェック（個別項目検索）
      * @param tableNm テーブル名
-     * @param colMap 項目情報
+     * @param colNm 項目名
+     * @param colDataType 項目データ型
      * @param bean 画面情報Bean
      * @return 結果 [true:存在する false:存在しない]
      * @throws SQLException
      */
     public boolean checkSeachValue(String tableNm,
-                                   Map<String, String> colMap,
+                                   String colNm,
+                                   String colDataType,
                                    SearchDatabaseBean bean) throws SQLException {
 
-        String whereCondition = getWhereCondition(colMap.get("COLUMN_NAME"), colMap.get("DATA_TYPE"), bean);
+        /*
+         * SQL文の実行チェック
+         */
+        String whereCondition = getWhereCondition(colNm, colDataType, bean);
         if (MyStringUtil.isEmpty(whereCondition)) {
             return false;
         }
 
-        // SQL文の生成
-        StringBuffer sql = new StringBuffer();
+        /*
+         * SQL文の生成
+         */
+        StringBuilder sql = new StringBuilder();
 
         sql.append("select ");
         sql.append("    'X' ");
@@ -163,7 +184,7 @@ public class SearchDatabaseSql {
 
         // 検索結果の取得
         List<Map<String, String>> list = sqlService.doSelect(sql.toString());
-        if (MyStringUtil.isNotEmpty(list)) {
+        if (!list.isEmpty()) {
             // 存在する
             return true;
         }
@@ -173,41 +194,50 @@ public class SearchDatabaseSql {
 
     /**
      * データ型に対応した検索条件を取得する
-     * @param COLUMN_NAME 項目名
-     * @param DATA_TYPE データ型
+     * @param colNm 項目名
+     * @param colDataType データ型
      * @param bean 検索値
      * @return 検索条件
      */
-    private String getWhereCondition(String COLUMN_NAME,
-                                     String DATA_TYPE,
+    private String getWhereCondition(String colNm,
+                                     String colDataType,
                                      SearchDatabaseBean bean) {
         // 検索対象文字列
         String searchValue = bean.getSearchValue().getText();
 
         // 比較演算子の取得（Like演算子 or =演算子）
-        String comparisonOperator = bean.getChkLikeVal().isSelected() ? "like" : "=";
+        String compOperator = bean.getChkLikeVal().isSelected() ? "like" : "=";
 
         // 検索条件格納クラスの生成
         StringBuffer bf = new StringBuffer();
-        if (DATA_TYPE_VARCHAR2.equals(DATA_TYPE) || DATA_TYPE_CHAR.equals(DATA_TYPE)) {
+
+        switch (colDataType) {
+        case DATA_TYPE_VARCHAR2:
+        case DATA_TYPE_CHAR:
             // VARCHAR2型
             // CHAR型
-            bf.append(COLUMN_NAME + " " + comparisonOperator + " '" + searchValue + "' ");
-        } else if (DATA_TYPE_DATE.equals(DATA_TYPE) || searchValue.startsWith(DATA_TYPE_TIMESTAMP)) {
+            bf.append(colNm + " " + compOperator + " '" + searchValue + "' ");
+            break;
+        case DATA_TYPE_DATE:
+        case DATA_TYPE_TIMESTAMP:
             // DATE型
             // TIMESTAMP型
             if (MyStringUtil.isDate(searchValue)) {
-                bf.append("to_char(" + COLUMN_NAME + ", 'yyyy/mm/dd') " + comparisonOperator + " '" + searchValue
-                          + "' ");
+                bf.append("to_char(" + colNm + ", 'yyyy/mm/dd') " + compOperator + " '" + searchValue + "' ");
             }
-        } else if (DATA_TYPE_NUMBER.equals(DATA_TYPE)) {
+            break;
+        case DATA_TYPE_NUMBER:
             // NUMBER型
             if (MyStringUtil.isInteger(searchValue)) {
-                bf.append(COLUMN_NAME + " " + comparisonOperator + " '" + searchValue + "' ");
+                bf.append(colNm + " " + compOperator + " '" + searchValue + "' ");
             }
-        } else {
+            break;
+
+        default:
             // LONG型、FLOAT型 etc...
+            break;
         }
+
         return bf.toString();
     }
 }
