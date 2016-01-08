@@ -46,12 +46,4 @@ public class SearchDataBaseConst {
     /** Oracle データ型(TIMESTAMP) */
     public static final String DATA_TYPE_TIMESTAMP = "TIMESTAMP";
 
-    /*
-     * Mapキー
-     */
-    /** 検索結果格納Mapキー(テーブル名) */
-    public static final String RESULT_MAP_KEY_TABLE_NAME = "tableNm";
-    /** 検索結果格納Mapキー(カラム名) */
-    public static final String RESULT_MAP_KEY_COLUMN_NAME = "colNm";
-
 }
