@@ -167,7 +167,7 @@ public enum MyDatabaseManager {
             conn.setAutoCommit(false);
 
         } catch (SQLException | ClassNotFoundException e) {
-            logger.error("database open error");
+            logger.error("database open error", e);
             return false;
         }
 
